@@ -1,0 +1,90 @@
+from datetime import datetime, timedelta
+from time import time, mktime
+from calendar import timegm
+from pymongo import Connection
+import numpy as np
+from pytz import timezone
+from matplotlib.dates import strpdate2num, epoch2num, num2date
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+import sys
+import ConfigParser as cp
+
+if len(sys.argv) > 0:
+    configfile = sys.argv[1]
+else:
+    sys.exit
+config = cp.ConfigParser()
+config.read(configfile)
+
+tz = timezone(config.get('Setup', 'timezone'))
+
+def getremote(server, port, filename=None):
+    connection = Connection(server, port)
+    db = connection.weather
+    coll = db.readings
+
+    datenow = datetime.utcnow()
+    datelimit = datenow - timedelta(hours=24)
+
+    results = coll.find({'date': {"$gte": datelimit, "$lte": datenow}})
+    num = results.count()
+    logs = np.zeros((num, 3))
+
+    for i, point in enumerate(results):
+        date = timegm(point['date'].timetuple())
+        try:
+            logs[i, :] = [date, point['humidity'], point['temperature']]
+        except (IndexError):
+            pass
+
+    if filename:
+        np.save(filename, logs)
+
+    return logs, datenow, datelimit
+
+# Create base filename
+basenow = datetime.now()
+basefilename = basenow.strftime("%Y%m%d-%H%M")
+basefilename = 'temp'
+
+# dbhost, dbport = config.get('Database', 'dbhost'), config.getint('Database', 'dbport')
+# getremote(dbhost, dbport, basefilename)
+
+logs = np.load('%s.npy' %basefilename)
+import smooth
+
+dates = epoch2num(logs[:, 0])
+dates = num2date(dates, tz)
+humidity = logs[:, 1]
+temperature = logs[:, 2]
+wlen2 = 500
+wlen = wlen2 * 2 + 1
+smoothed = smooth.smooth(temperature, window_len=wlen, window='hamming')
+smoothed = smoothed[wlen2:(-wlen2)]
+
+fig = plt.figure(figsize=(11.27, 8.69))
+
+ax1 = fig.add_subplot(211)
+ax1.plot_date(dates, humidity, 'k-')
+ax1.set_ylabel("Humidity (%)")
+fig.autofmt_xdate()
+
+ax2 = fig.add_subplot(212)
+ax2.plot_date(dates, temperature, 'k.')
+ax2.plot_date(dates, smoothed, 'r-', linewidth=3)
+ax2.set_ylabel("Temperature (C)")
+# ax2.set_xlabel("Time", fontsize=16)
+fig.autofmt_xdate()
+
+ax1.set_title("%s -> %s" %(dates[0], dates[-1]))
+
+plt.savefig("out.png")
+
+hmean, hmax, hmin = np.mean(humidity), np.max(humidity), np.min(humidity)
+tmean, tmax, tmin = np.mean(temperature), np.max(temperature), np.min(temperature)
+smean, smax, smin = np.mean(smoothed), np.max(smoothed), np.min(smoothed)
+print hmean, hmax, hmin
+print tmean, tmax, tmin
+print smean, smax, smin
