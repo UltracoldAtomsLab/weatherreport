@@ -1,0 +1,8 @@
+[Database]
+dbhost = localhost
+dbport = 27017
+[Setup]
+timezone = Asia/Taipei
+[Mail]
+from = me@example.com
+to = me@example.com,you@example.com
