@@ -1,3 +1,4 @@
+#!/usr/bin/env python2
 from datetime import datetime, timedelta
 from time import time, mktime
 from calendar import timegm
@@ -47,13 +48,13 @@ def getremote(server, port, filename=None):
 # Create base filename
 basenow = datetime.now()
 basefilename = basenow.strftime("%Y%m%d-%H%M")
-basefilename = 'temp'
 
-# dbhost, dbport = config.get('Database', 'dbhost'), config.getint('Database', 'dbport')
-# getremote(dbhost, dbport, basefilename)
+dbhost, dbport = config.get('Database', 'dbhost'), config.getint('Database', 'dbport')
+getremote(dbhost, dbport, basefilename)
 
 logs = np.load('%s.npy' %basefilename)
 import smooth
+import sendmail
 
 dates = epoch2num(logs[:, 0])
 dates = num2date(dates, tz)
@@ -80,11 +81,20 @@ fig.autofmt_xdate()
 
 ax1.set_title("%s -> %s" %(dates[0], dates[-1]))
 
-plt.savefig("out.png")
+plt.savefig("%s.png" %(basefilename))
 
 hmean, hmax, hmin = np.mean(humidity), np.max(humidity), np.min(humidity)
 tmean, tmax, tmin = np.mean(temperature), np.max(temperature), np.min(temperature)
 smean, smax, smin = np.mean(smoothed), np.max(smoothed), np.min(smoothed)
-print hmean, hmax, hmin
-print tmean, tmax, tmin
-print smean, smax, smin
+
+text = ""
+text += "Lab weather report for %s -> %s \n" %(dates[0], dates[-1])
+text += "Humidity [%%] (avg/min/max): %.1f / %.1f / %.1f \n" %(hmean, hmin, hmax)
+text += "Temperature [C] (avg/min/max): %.2f / %.2f / %.2f (smoothed)\n" %(smean, smin, smax)
+
+emailfrom = config.get("Mail", 'from')
+emailto = config.get("Mail", 'to').split(',')
+subject = "LabWeather: %s" %(basefilename)
+images = ['%s.png' %(basefilename)]
+
+sendmail.sendout(subject, emailfrom, emailto, text, images)
