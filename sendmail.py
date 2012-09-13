@@ -27,6 +27,7 @@ def sendout(subject, sender, target, text, attachimage):
         fp = open(file, 'rb')
         img = MIMEImage(fp.read())
         fp.close()
+        img.add_header('Content-Disposition', 'attachment', filename=file)
         msg.attach(img)
 
     # Send the email via our own SMTP server.
