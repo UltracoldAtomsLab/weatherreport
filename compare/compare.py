@@ -1,55 +1,120 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import pylab as pl
-import datetime
-import pytz
+from datetime import datetime
 import time
-from time import mktime
-from matplotlib.dates import strpdate2num, epoch2num, num2date
+from time import mktime, strptime
+from matplotlib.dates import epoch2num, num2date
+import sys
+import ConfigParser as cp
+from pytz import timezone
+from pymongo import Connection
+from calendar import timegm
 
-tz = pytz.timezone('Asia/Taipei')
+dt = np.dtype({'names':['date','temperature','humidity'],
+               'formats':[np.float, np.float, np.float]})
 
+def loadlog(logfile):
+    """
+    Read logs from the UB10, exported to CSV
+    Date format needs to be "09/13/2012 11:12:13 AM"
 
-logfile = "2012_0828_15_26pm.csv"
-# logfile = "test3.csv"
-def dateconv(s):
-    date, time = s.split(' ')
-    month, day, year = [int(x) for x in date.split('/')]
-    time = time.decode('utf-8')
-    hour = int(time[2:4])    
-    if time[0] != u'上':
-        if hour < 12:
-            hour += 12
-    elif hour == 12:
-        hour = 0
-    minute = int(time[5:7])
-    second = int(time[8:9])
-    thisdate = datetime.datetime(2000+year, month, day, hour, minute, second, 0)
-    return float(mktime(thisdate.timetuple()))
+    Returns anumpy array with three columns, and addressable as 'date', 'temperature', 'humidity'
+    """
+    logs  = np.loadtxt(logfile,
+                       delimiter=',',
+                       comments="\"",
+                       usecols=(1, 2, 3),
+                       converters = {1: lambda x: mktime(strptime(x, "%m/%d/%Y %I:%M:%S %p")),
+                                     2: lambda x: np.nan if x == "" else float(x),
+                                     3: lambda x: np.nan if x == "" else float(x)},
+                       dtype=dt,
+                       unpack=False,
+                       skiprows=2
+                       )
+    return logs
 
-dt=np.dtype({'names':['date','temperature','humidity'],'formats':[np.float, np.float, np.float]})
-logdate, temperature, humidity = np.loadtxt(logfile,
-                                         delimiter=',',
-                                         comments="\"",
-                                         usecols=(1, 2, 3),
-                                         converters = {1: lambda x: dateconv(x), 2: lambda x: np.nan if x == "" else float(x), 3: lambda x: np.nan if x == "" else float(x)},
-                                         dtype=dt,
-                                         unpack=True)
+def getremote(server, port, limits):
+    """
+    Download data from mongo server according to settings
+    between the given time limits
 
-newdate = epoch2num(logdate)
-# print date
-# newdate = date[:]
-print newdate
-fig = pl.figure(figsize=(11.27, 8.69))
+    server
+    port
+    limits = (start, finish) in unixtime
+    """
+    connection = Connection(server, port)
+    db = connection.weather
+    coll = db.readings
 
-ax1 = fig.add_subplot(211)
-ax1.plot_date(newdate, humidity, 'k-')
-ax1.set_ylabel("Humidity (%)")
+    datenow = datetime.fromtimestamp(limits[1], tz)
+    datelimit = datetime.fromtimestamp(limits[0], tz)
 
-ax2 = fig.add_subplot(212)
-ax2.plot_date(newdate, temperature, 'k.')
-ax2.set_ylabel("Temperature (C)")
-fig.autofmt_xdate()
+    results = coll.find({'date': {"$gte": datelimit, "$lte": datenow}})
+    num = results.count()
+    logs = np.zeros((num, ), dtype=dt)
 
+    for i, point in enumerate(results):
+        date = timegm(point['date'].timetuple())
+        try:
+            logs['date'][i] = date
+            logs['humidity'][i] = point['humidity']
+            logs['temperature'][i] = point['temperature']
+        except (IndexError):
+            pass
+    return logs, datenow, datelimit
 
-pl.show()
+def doplot(series):
+    """
+    Do the actual plotting of the series
+    Needs data with the given dtypes to be able to address the
+    'date', 'humidity', 'temperature' columns
+    """
+    fig = pl.figure(figsize=(11.27, 8.69))
+    dates = [num2date(epoch2num(s[0]['date']), tz) for s in series]
+
+    ax1 = fig.add_subplot(211)
+    for i, s in enumerate(series):
+        ax1.plot_date(dates[i], s[0]['humidity'], '-', label=s[1])
+    ax1.set_ylabel("Humidity (%)")
+    ax1.legend(loc='best')
+    fig.autofmt_xdate()
+
+    ax2 = fig.add_subplot(212)
+    signs = ['s', 'x', 'o']
+    for i, s in enumerate(series):
+        ax2.plot_date(dates[i], s[0]['temperature'], signs[i % len(signs)], label=s[1])
+    ax2.set_ylabel("Temperature (C)")
+    ax2.legend(loc='best')
+    fig.autofmt_xdate()
+
+    ax1.set_title("%s -> %s" %(dates[0][0], dates[0][-1]))
+
+if __name__ == "__main__":
+    if len(sys.argv) > 2:
+        configfile = sys.argv[1]
+        infile = sys.argv[2]
+    else:
+        print "No configuration/input given!\nusage: compare.py configfile logfile"
+        sys.exit(1)
+
+    config = cp.ConfigParser()
+    config.read(configfile)
+
+    tz = timezone(config.get('Setup', 'timezone'))
+    dbhost, dbport = config.get('Database', 'dbhost'), config.getint('Database', 'dbport')
+
+    ub = loadlog(infile)
+    start, finish = ub['date'][0], ub['date'][-1]
+    limits = (start, finish)
+    ws, d1, d2 = getremote(dbhost, dbport, limits)
+
+    np.save('%s.ub.npy' %infile, ub)
+    np.save('%s.ws.npy' %infile, ws)
+    # ub = np.load('ub.npy')
+    # ws = np.load('ws.npy')
+
+    doplot([(ws, 'WeatherStation'), (ub, 'U10'),])
+    pl.savefig("%s.png" %infile)
+
+    pl.show()
