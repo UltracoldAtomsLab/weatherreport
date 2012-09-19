@@ -62,8 +62,7 @@ humidity = logs[:, 1]
 temperature = logs[:, 2]
 wlen2 = 500
 wlen = wlen2 * 2 + 1
-smoothed = smooth.smooth(temperature, window_len=wlen, window='hamming')
-smoothed = smoothed[wlen2:(-wlen2)]
+kalman = smooth.kalman(temperature)
 
 fig = plt.figure(figsize=(11.27, 8.69))
 
@@ -73,10 +72,11 @@ ax1.set_ylabel("Humidity (%)")
 fig.autofmt_xdate()
 
 ax2 = fig.add_subplot(212)
-ax2.plot_date(dates, temperature, 'k.')
-ax2.plot_date(dates, smoothed, 'r-', linewidth=3)
+ax2.plot_date(dates, temperature, 'k.', label="measurement")
+ax2.plot_date(dates, kalman, 'r-', linewidth=2, label="Kalman-filter")
 ax2.set_ylabel("Temperature (C)")
-# ax2.set_xlabel("Time", fontsize=16)
+ax2.set_xlabel("Time", fontsize=16)
+ax2.set_title("Temperature + Kalman-filtered measurement")
 fig.autofmt_xdate()
 
 ax1.set_title("%s -> %s" %(dates[0], dates[-1]))
