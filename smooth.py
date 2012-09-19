@@ -57,7 +57,35 @@ def smooth(x,window_len=11,window='hanning'):
     y=numpy.convolve(w/w.sum(),s,mode='valid')
     return y
 
+def kalman(x):
+    """Kalman filter
+    Using variance estimate from measurement
+    """
+    # based/implemented from http://www.scipy.org/Cookbook/KalmanFiltering
+    sz = len(x)
+    Q = 1e-6  # process variance
+    R = numpy.var(x)  # estimate of measurement variance, can change to see effect
+    xhat = numpy.zeros(sz)  # a posteri estimate of x
+    P = numpy.zeros(sz)  # a posteri error estimate
+    xhatminus = numpy.zeros(sz)  # a priori estimate of x
+    Pminus = numpy.zeros(sz)  # a priori error estimate
+    K = numpy.zeros(sz)  # gain or blendi
 
+    # intial guesses
+    xhat[0] = np.mean(x)
+    P[0] = Pminus[0]
+
+    # Update
+    for k in range(1,sz):
+        # time update
+        xhatminus[k] = xhat[k-1]
+        Pminus[k] = P[k-1]+Q
+        # measurement update
+        K[k] = Pminus[k]/( Pminus[k]+R )
+        xhat[k] = xhatminus[k]+K[k]*(x[k]-xhatminus[k])
+        P[k] = (1-K[k])*Pminus[k]
+
+    return xhat
 
 
 from numpy import *
