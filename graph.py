@@ -85,12 +85,12 @@ plt.savefig("%s.png" %(basefilename))
 
 hmean, hmax, hmin = np.mean(humidity), np.max(humidity), np.min(humidity)
 tmean, tmax, tmin = np.mean(temperature), np.max(temperature), np.min(temperature)
-smean, smax, smin = np.mean(smoothed), np.max(smoothed), np.min(smoothed)
+smean, smax, smin = np.mean(kalman), np.max(kalman), np.min(kalman)
 
 text = ""
 text += "Lab weather report for %s -> %s \n" %(dates[0], dates[-1])
 text += "Humidity [%%] (avg/min/max): %.1f / %.1f / %.1f \n" %(hmean, hmin, hmax)
-text += "Temperature [C] (avg/min/max): %.2f / %.2f / %.2f (smoothed)\n" %(smean, smin, smax)
+text += "Temperature [C] (avg/min/max): %.2f / %.2f / %.2f (filtered)\n" %(smean, smin, smax)
 
 emailfrom = config.get("Mail", 'from')
 emailto = config.get("Mail", 'to').split(',')
