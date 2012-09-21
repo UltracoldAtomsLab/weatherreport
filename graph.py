@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import sys
 import ConfigParser as cp
 
+from dew import dew
+
 if len(sys.argv) > 0:
     configfile = sys.argv[1]
 else:
@@ -64,19 +66,28 @@ wlen2 = 500
 wlen = wlen2 * 2 + 1
 kalman = smooth.kalman(temperature)
 
-fig = plt.figure(figsize=(11.27, 8.69))
+# This only works if the "humidity" is calculated with interpolation
+dewpoint = dew.Tdp(kalman, humidity)
 
-ax1 = fig.add_subplot(211)
+fig = plt.figure(figsize=(16.9, 8.69))
+
+ax1 = fig.add_subplot(311)
 ax1.plot_date(dates, humidity, 'k-')
 ax1.set_ylabel("Humidity (%)")
 fig.autofmt_xdate()
 
-ax2 = fig.add_subplot(212)
-ax2.plot_date(dates, temperature, 'k.', label="measurement")
-ax2.plot_date(dates, kalman, 'r-', linewidth=2, label="Kalman-filter")
-ax2.set_ylabel("Temperature (C)")
+ax2 = fig.add_subplot(312)
+ax2.plot_date(dates, dewpoint, 'k-', linewidth=2, label="Kalman-filter")
+ax2.set_ylabel("Dew Point Temperature (C)")
 ax2.set_xlabel("Time", fontsize=16)
-ax2.set_title("Temperature + Kalman-filtered measurement")
+fig.autofmt_xdate()
+
+ax3 = fig.add_subplot(313)
+ax3.plot_date(dates, temperature, 'k.', label="measurement")
+ax3.plot_date(dates, kalman, 'r-', linewidth=2, label="Kalman-filter")
+ax3.set_ylabel("Temperature (C)")
+ax3.set_xlabel("Time", fontsize=16)
+ax3.set_title("Temperature + Kalman-filtered measurement")
 fig.autofmt_xdate()
 
 ax1.set_title("%s -> %s" %(dates[0], dates[-1]))
