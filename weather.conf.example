@@ -1,8 +1,9 @@
 [Database]
-dbhost = localhost
-dbport = 27017
+mongos=localhost:27017,otherhost:27017
+db=weather
+collection=readings
 [Setup]
-timezone = Asia/Taipei
+timezone=Asia/Taipei
 [Mail]
-from = me@example.com
-to = me@example.com,you@example.com
+from=me@example.com
+to=me@example.com,you@example.com

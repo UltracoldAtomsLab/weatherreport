@@ -21,10 +21,10 @@ config.read(configfile)
 
 tz = timezone(config.get('Setup', 'timezone'))
 
-def getremote(server, port, filename=None):
-    connection = Connection(server, port)
-    db = connection.weather
-    coll = db.readings
+def getremote(mongos, database, collection, filename=None):
+    connection = Connection(mongos)
+    db = connection[database]
+    coll = db[collection]
 
     datenow = datetime.utcnow()
     datelimit = datenow - timedelta(hours=24)
@@ -49,8 +49,10 @@ def getremote(server, port, filename=None):
 basenow = datetime.now()
 basefilename = basenow.strftime("%Y%m%d-%H%M")
 
-dbhost, dbport = config.get('Database', 'dbhost'), config.getint('Database', 'dbport')
-getremote(dbhost, dbport, basefilename)
+mongos = config.get('Database', 'mongos').split(',')
+db = config.get('Database', 'db')
+collection = config.get('Database', 'collection')
+getremote(mongos, db, collection, basefilename)
 
 logs = np.load('%s.npy' %basefilename)
 import smooth
