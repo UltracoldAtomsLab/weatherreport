@@ -1,9 +1,15 @@
 [Database]
+# List of MongoDB servers which have the weather data
 mongos=localhost:27017,otherhost:27017
+# Name of database to use
 db=weather
+# Name of collection within database to read
 collection=readings
 [Setup]
+# Time zone of report
 timezone=Asia/Taipei
 [Mail]
+# From address of report email
 from=me@example.com
+# List of recepients, comma separated, no spaces between
 to=me@example.com,you@example.com
