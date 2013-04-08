@@ -1,3 +1,6 @@
+"""
+Implement different smoothing algorithms
+"""
 import numpy
 
 def smooth(x,window_len=11,window='hanning'):
@@ -63,6 +66,8 @@ def kalman(x):
     """
     # based/implemented from http://www.scipy.org/Cookbook/KalmanFiltering
     sz = len(x)
+    if (sz <= 2):  # if the number of readings too low, there might be a problem
+        return None
     Q = 1e-6  # process variance
     R = numpy.var(x)  # estimate of measurement variance, can change to see effect
     xhat = numpy.zeros(sz)  # a posteri estimate of x

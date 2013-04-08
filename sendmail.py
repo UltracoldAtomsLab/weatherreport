@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 
 COMMASPACE = ', '
 
-def sendout(subject, sender, target, text, attachimage):
+def sendout(subject, sender, password, target, text, attachimage, server, port, TLS=False):
     # Create the container (outer) email message.
     msg = MIMEMultipart()
     msg['Subject'] = subject
@@ -30,7 +30,10 @@ def sendout(subject, sender, target, text, attachimage):
         img.add_header('Content-Disposition', 'attachment', filename=file)
         msg.attach(img)
 
-    # Send the email via our own SMTP server.
-    s = smtplib.SMTP('localhost')
+    # Send the email via the set server
+    s = smtplib.SMTP(server, port)
+    if TLS:
+        s.starttls()
+    s.login(sender, password)
     s.sendmail(sender, target, msg.as_string())
     s.quit()

@@ -19,6 +19,12 @@ else:
 config = cp.ConfigParser()
 config.read(configfile)
 
+emailfrom = config.get("Mail", 'from')
+password = config.get("Mail", 'password')
+emailserver = config.get("Mail", 'server')
+emailport = config.getint("Mail", 'port')
+TLS = config.getboolean("Mail", 'tls')
+emailto = config.get("Mail", 'to').split(',')
 tz = timezone(config.get('Setup', 'timezone'))
 
 def getremote(mongos, database, collection, filename=None):
@@ -48,6 +54,7 @@ def getremote(mongos, database, collection, filename=None):
 # Create base filename
 basenow = datetime.now()
 basefilename = basenow.strftime("%Y%m%d-%H%M")
+subject = "LabWeather: %s" %(basefilename)
 
 mongos = config.get('Database', 'mongos').split(',')
 db = config.get('Database', 'db')
@@ -65,6 +72,10 @@ temperature = logs[:, 2]
 wlen2 = 500
 wlen = wlen2 * 2 + 1
 kalman = smooth.kalman(temperature)
+if kalman is None:  # there was a problem with the data, report and bye
+    text = "Check weather recording, nothing to report at the moment."
+    sendmail.sendout(subject, emailfrom, password, emailto, text, [], emailserver, emailport, TLS)
+    sys.exit(0)
 
 fig = plt.figure(figsize=(11.27, 8.69))
 
@@ -94,9 +105,6 @@ text += "Lab weather report for %s -> %s \n" %(dates[0], dates[-1])
 text += "Humidity [%%] (avg/min/max): %.1f / %.1f / %.1f \n" %(hmean, hmin, hmax)
 text += "Temperature [C] (avg/min/max): %.2f / %.2f / %.2f (filtered)\n" %(smean, smin, smax)
 
-emailfrom = config.get("Mail", 'from')
-emailto = config.get("Mail", 'to').split(',')
-subject = "LabWeather: %s" %(basefilename)
 images = ['%s.png' %(basefilename)]
 
-sendmail.sendout(subject, emailfrom, emailto, text, images)
+sendmail.sendout(subject, emailfrom, password, emailto, text, images, emailserver, emailport, TLS)

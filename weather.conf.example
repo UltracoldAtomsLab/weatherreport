@@ -9,7 +9,12 @@ collection=readings
 # Time zone of report
 timezone=Asia/Taipei
 [Mail]
+# Mail server settings, this settings are good for Gmail
+server=smtp.gmail.com
+port=587
+tls=True
 # From address of report email
-from=me@example.com
+from=me@gmail.com
+password=thisismypassword
 # List of recepients, comma separated, no spaces between
 to=me@example.com,you@example.com
